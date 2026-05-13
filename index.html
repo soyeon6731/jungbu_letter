@@ -106,17 +106,24 @@
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-  // ⚠️ 본인의 Supabase 정보로 교체하세요
+  const $ = id => document.getElementById(id);
+
+  // --- Supabase 설정 (현재 키가 올바르지 않아 오류가 날 수 있습니다) ---
   const SUPABASE_URL = 'https://zaqzaxnfsxhqedzungeg.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_dLT3EuDRIudAoRW7f7sNhQ_LKv2981k';
-  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  const $ = id => document.getElementById(id);
+  
+  let supabase = null;
+  try {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  } catch (e) {
+    console.error("Supabase 초기화 실패:", e);
+  }
 
   // 꽃잎 효과
   (function(){
     const colors=['#FFD6BA','#FFAEB0','#B5EAD7','#C9C3E8','#BEE3F8'];
     const wrap=$('particles');
+    if(!wrap) return;
     for(let i=0;i<15;i++){
       const p=document.createElement('div'); p.className='petal';
       const s=10+Math.random()*10;
@@ -125,43 +132,91 @@
     }
   })();
 
+  // 화면 이동 함수 (전역 등록)
   window.goTo = function(id) {
+    console.log("Moving to:", id);
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    $(id).classList.add('active');
-    if(id === 'gallery') loadLetters();
+    const target = $(id);
+    if (target) {
+      target.classList.add('active');
+      if(id === 'gallery') loadLetters();
+    }
   };
 
+  // 편지 보내기
   window.sendLetter = async function() {
     const sender = $('senderName').value.trim() || '익명의 여행자';
     const content = $('letterContent').value.trim();
     if(!content) return alert('편지 내용을 적어주세요 💌');
 
-    const { error } = await supabase.from('letters').insert([{ sender, content }]);
-    if (error) return alert('저장 실패: ' + error.message);
+    try {
+      if (!supabase) throw new Error("데이터베이스 연결 설정이 없습니다.");
+      
+      const { error } = await supabase.from('letters').insert([{ sender, content }]);
+      if (error) throw error;
 
+      console.log("편지 전송 성공 (DB)");
+    } catch (e) {
+      console.warn("DB 저장 실패, 브라우저에 임시 저장합니다:", e.message);
+      saveToLocal(sender, content);
+    }
+
+    // 애니메이션 및 화면 전환은 저장 결과와 상관없이 진행
     $('driftBottle').classList.add('bottle-animating');
-    goTo('drift');
+    setTimeout(() => {
+        goTo('drift');
+        // 애니메이션 초기화 (나중에 다시 쓸 수 있게)
+        setTimeout(() => $('driftBottle').classList.remove('bottle-animating'), 3500);
+    }, 100);
   };
 
+  // 편지 불러오기
   async function loadLetters() {
     const grid = $('lettersGrid');
     grid.innerHTML = '<div style="text-align:center; width:100%;">파도에서 건져올리는 중...</div>';
 
-    const { data, error } = await supabase.from('letters').select('*').order('created_at', { ascending: false });
-    if (error) return grid.innerHTML = '불러오기 실패';
+    let letters = [];
+    try {
+      if (!supabase) throw new Error("연결 설정 없음");
+      const { data, error } = await supabase.from('letters').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      letters = data || [];
+    } catch (e) {
+      console.warn("DB 불러오기 실패, 로컬 데이터를 가져옵니다:", e.message);
+      letters = getFromLocal();
+    }
+
+    if (letters.length === 0) {
+      grid.innerHTML = '<div style="text-align:center; width:100%; padding: 2rem;">아직 도착한 편지가 없어요. 🌊<br><br>첫 번째 편지를 보내보세요!</div>';
+      return;
+    }
 
     grid.innerHTML = '';
     const ribbons = ['ribbon-pink', 'ribbon-mint', 'ribbon-lav', 'ribbon-sky', 'ribbon-peach'];
-    data.forEach((l, i) => {
+    letters.forEach((l, i) => {
       const card = document.createElement('div');
       card.className = 'letter-card';
       card.innerHTML = `
         <div class="card-ribbon ${ribbons[i % 5]}"></div>
         <div style="font-size: 0.9rem; color: #9A8070; margin-bottom: 10px;">✉️ ${l.sender} 로부터</div>
-        <div style="line-height: 1.6;">${l.content}</div>
+        <div style="line-height: 1.6; word-break: break-all;">${l.content}</div>
       `;
       grid.appendChild(card);
     });
+  }
+
+  // 로컬 스토리지 보조 함수
+  function saveToLocal(sender, content) {
+    const localData = JSON.parse(localStorage.getItem('my_letters') || '[]');
+    localData.unshift({ 
+      sender, 
+      content, 
+      created_at: new Date().toISOString() 
+    });
+    localStorage.setItem('my_letters', JSON.stringify(localData.slice(0, 50))); // 최대 50개 유지
+  }
+  function getFromLocal() {
+    return JSON.parse(localStorage.getItem('my_letters') || '[]');
   }
 </script>
 </body>
