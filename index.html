@@ -85,14 +85,16 @@
 </div>
 
 <div class="screen" id="drift">
-  <div class="drift-water">
+  <!-- pointer-events: none을 추가하여 클릭을 방해하지 않게 합니다 -->
+  <div class="drift-water" style="pointer-events: none;">
     <svg class="drift-wave" viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,30 C360,70 720,10 1080,50 C1260,70 1380,30 1440,40 L1440,80 L0,80Z" fill="#A8D8EA" fill-opacity=".6"/></svg>
   </div>
-  <svg id="driftBottle" viewBox="0 0 120 200" fill="none">
+  <svg id="driftBottle" viewBox="0 0 120 200" fill="none" style="pointer-events: none;">
     <path d="M36 30 Q30 50 28 80 L28 160 Q28 180 60 180 Q92 180 92 160 L92 80 Q90 50 84 30 Z" fill="#B8E0F0" fill-opacity=".7"/>
   </svg>
-  <h2 style="color: white; z-index: 2;">편지가 떠나갔어요 🌊</h2>
-  <button class="btn-primary" onclick="goTo('gallery')" style="margin-top: 20px;">🌸 모든 편지 보기</button>
+  <!-- 글자와 버튼을 앞쪽으로 배치합니다 -->
+  <h2 style="color: white; z-index: 10; position: relative;">편지가 떠나갔어요 🌊</h2>
+  <button class="btn-primary" onclick="goTo('gallery')" style="margin-top: 20px; z-index: 10; position: relative;">🌸 모든 편지 보기</button>
 </div>
 
 <div class="screen" id="gallery">
